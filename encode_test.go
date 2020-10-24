@@ -54,6 +54,11 @@ var encodeTests = []struct {
 	{name: "string array", in: [3]string{"a", "bcd", "efghi"}, wantOutput: "l1:a3:bcd5:efghie"},
 	{name: "int array", in: [3]int{1, 234, 5678}, wantOutput: "li1ei234ei5678ee"},
 	{name: "mixed-type array", in: [4]interface{}{123, "abc", 456, "def"}, wantOutput: "li123e3:abci456e3:defe"},
+
+	{name: "empty slice", in: []string{}, wantOutput: "le"},
+	{name: "string slice", in: []string{"a", "bcd", "efghi"}, wantOutput: "l1:a3:bcd5:efghie"},
+	{name: "int slice", in: []int{1, 234, 5678}, wantOutput: "li1ei234ei5678ee"},
+	{name: "mixed-type slice", in: []interface{}{123, "abc", 456, "def"}, wantOutput: "li123e3:abci456e3:defe"},
 }
 
 func TestEncode(t *testing.T) {

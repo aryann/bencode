@@ -36,7 +36,7 @@ func marshal(v reflect.Value, w *strings.Builder) error {
 		marshalInt(int(v.Uint()), w)
 	case reflect.String:
 		err = marshalString(v.String(), w)
-	case reflect.Array:
+	case reflect.Array, reflect.Slice:
 		err = marshalList(v, w)
 	default:
 		return fmt.Errorf("encountered unsupported type: %s", v.Kind().String())
