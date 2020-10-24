@@ -76,7 +76,7 @@ var encodeTests = []struct {
 		y: "world",
 		z: 123,
 	},
-		wantOutput: "d8:my-field5:helloe"},
+		wantOutput: "d10:my-field-15:hello10:my-field-25:world10:my-field-3i123ee"},
 }
 
 func TestEncode(t *testing.T) {
