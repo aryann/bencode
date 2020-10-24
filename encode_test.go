@@ -49,6 +49,11 @@ var encodeTests = []struct {
 	{name: "string", in: "hello", wantOutput: "5:hello"},
 	{name: "string with space", in: "Hello, world!", wantOutput: "13:Hello, world!"},
 	{name: "string with non-ascii characters", in: "§", wantErr: "strings may not contain non-ascii characters: §"},
+
+	{name: "empty array", in: [0]string{}, wantOutput: "le"},
+	{name: "string array", in: [3]string{"a", "bcd", "efghi"}, wantOutput: "l1:a3:bcd5:efghie"},
+	{name: "int array", in: [3]int{1, 234, 5678}, wantOutput: "li1ei234ei5678ee"},
+	{name: "mixed-type array", in: [4]interface{}{123, "abc", 456, "def"}, wantOutput: "li123e3:abci456e3:defe"},
 }
 
 func TestEncode(t *testing.T) {
@@ -63,7 +68,11 @@ func TestEncode(t *testing.T) {
 				}
 			}
 			if out != testCase.wantOutput {
-				t.Errorf("got output '%s', want '%s'", out, testCase.wantOutput)
+				if err == nil {
+					t.Errorf("got output '%s', want '%s'", out, testCase.wantOutput)
+				} else {
+					t.Errorf("got unexpected error '%v'", err)
+				}
 			}
 		})
 	}
