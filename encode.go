@@ -11,6 +11,18 @@ func Marshal(v interface{}) (string, error) {
 	kind := reflect.TypeOf(v).Kind()
 	value := reflect.ValueOf(v)
 	switch kind {
+	case reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64:
+		return fmt.Sprintf("i%de", value.Int()), nil
+	case reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64:
+		return fmt.Sprintf("i%de", value.Uint()), nil
 	case reflect.String:
 		return marshalString(value.String())
 	default:
