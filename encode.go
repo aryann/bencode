@@ -38,6 +38,8 @@ func marshal(v reflect.Value, w *strings.Builder) error {
 		err = marshalString(v.String(), w)
 	case reflect.Array, reflect.Slice:
 		err = marshalList(v, w)
+	case reflect.Struct:
+		err = marshalStruct(v, w)
 	default:
 		return fmt.Errorf("encountered unsupported type: %s", v.Kind().String())
 	}
@@ -75,6 +77,22 @@ func marshalList(v reflect.Value, w *strings.Builder) error {
 		if err := marshal(v.Index(i), w); err != nil {
 			return err
 		}
+	}
+	w.WriteRune('e')
+	return nil
+}
+
+func marshalStruct(v reflect.Value, w *strings.Builder) error {
+	w.WriteRune('d')
+	for i := 0; i < v.NumField(); i++ {
+		key := v.Type().Field(i).Tag.Get("key")
+		if key == "" {
+			return fmt.Errorf("found struct field with no 'key' tag")
+		}
+		if err := marshalString(key, w); err != nil {
+			return err
+		}
+		marshal(v.Field(i), w)
 	}
 	w.WriteRune('e')
 	return nil

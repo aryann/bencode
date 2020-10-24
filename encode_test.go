@@ -59,6 +59,24 @@ var encodeTests = []struct {
 	{name: "string slice", in: []string{"a", "bcd", "efghi"}, wantOutput: "l1:a3:bcd5:efghie"},
 	{name: "int slice", in: []int{1, 234, 5678}, wantOutput: "li1ei234ei5678ee"},
 	{name: "mixed-type slice", in: []interface{}{123, "abc", 456, "def"}, wantOutput: "li123e3:abci456e3:defe"},
+
+	{name: "empty struct", in: struct{}{}, wantOutput: "de"},
+	{name: "single-field struct", in: struct {
+		x string `key:"my-field"`
+	}{
+		x: "hello",
+	},
+		wantOutput: "d8:my-field5:helloe"},
+	{name: "multi-field struct", in: struct {
+		x string `key:"my-field-1"`
+		y string `key:"my-field-2"`
+		z int    `key:"my-field-3"`
+	}{
+		x: "hello",
+		y: "world",
+		z: 123,
+	},
+		wantOutput: "d8:my-field5:helloe"},
 }
 
 func TestEncode(t *testing.T) {
