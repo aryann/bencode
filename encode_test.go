@@ -146,6 +146,22 @@ var encodeTests = []struct {
 		},
 		wantOutput: "d6:structd1:ai123e1:bi456ee12:struct-arrayld1:ci1eed1:ci2eed1:ci3eee12:struct-sliceld1:di1eed1:di2eed1:di3eeee",
 	},
+
+	{
+		name: "key sorting in struct",
+		in: struct {
+			c    string `key:"c"`
+			b    string `key:"b"`
+			a    string `key:"a"`
+			zero string `key:"0"`
+		}{
+			c:    "C",
+			b:    "B",
+			a:    "A",
+			zero: "ZERO",
+		},
+		wantOutput: "d1:04:ZERO1:a1:A1:b1:B1:c1:Ce",
+	},
 }
 
 func TestEncode(t *testing.T) {

@@ -3,6 +3,7 @@ package bencode
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -82,17 +83,28 @@ func marshalList(v reflect.Value, w *strings.Builder) error {
 	return nil
 }
 
+// marshalStruct serializes a struct. Each field in the struct must have a
+// tag named "key" that specifies the key to use in the output. Per Bencode
+// specifications, the keys are ordered in the serialized output.
 func marshalStruct(v reflect.Value, w *strings.Builder) error {
-	w.WriteRune('d')
+	keys := make([]string, v.NumField())
+	keyToIndex := make(map[string]int, v.NumField())
 	for i := 0; i < v.NumField(); i++ {
 		key := v.Type().Field(i).Tag.Get("key")
 		if key == "" {
 			return fmt.Errorf("found struct field with no 'key' tag")
 		}
+		keys[i] = key
+		keyToIndex[key] = i
+	}
+	sort.Strings(keys)
+
+	w.WriteRune('d')
+	for _, key := range keys {
 		if err := marshalString(key, w); err != nil {
 			return err
 		}
-		marshal(v.Field(i), w)
+		marshal(v.Field(keyToIndex[key]), w)
 	}
 	w.WriteRune('e')
 	return nil
