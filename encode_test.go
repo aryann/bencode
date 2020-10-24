@@ -115,6 +115,37 @@ var encodeTests = []struct {
 		},
 		wantOutput: "d12:string-arrayl1:a1:b1:ce12:string-slicel1:x1:y1:zee",
 	},
+
+	{
+		name: "struct-containing struct",
+		in: struct {
+			structField struct {
+				a int `key:"a"`
+				b int `key:"b"`
+			} `key:"struct"`
+			structArray [3]struct {
+				c int `key:"c"`
+			} `key:"struct-array"`
+			structSlice []struct {
+				d int `key:"d"`
+			} `key:"struct-slice"`
+		}{
+			structField: struct {
+				a int `key:"a"`
+				b int `key:"b"`
+			}{
+				a: 123,
+				b: 456,
+			},
+			structArray: [3]struct {
+				c int `key:"c"`
+			}{{c: 1}, {c: 2}, {c: 3}},
+			structSlice: []struct {
+				d int `key:"d"`
+			}{{d: 1}, {d: 2}, {d: 3}},
+		},
+		wantOutput: "d6:structd1:ai123e1:bi456ee12:struct-arrayld1:ci1eed1:ci2eed1:ci3eee12:struct-sliceld1:di1eed1:di2eed1:di3eeee",
+	},
 }
 
 func TestEncode(t *testing.T) {
