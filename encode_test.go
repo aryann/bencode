@@ -61,22 +61,60 @@ var encodeTests = []struct {
 	{name: "mixed-type slice", in: []interface{}{123, "abc", 456, "def"}, wantOutput: "li123e3:abci456e3:defe"},
 
 	{name: "empty struct", in: struct{}{}, wantOutput: "de"},
-	{name: "single-field struct", in: struct {
-		x string `key:"my-field"`
-	}{
-		x: "hello",
-	},
+
+	{name: "single-field struct",
+		in: struct {
+			x string `key:"my-field"`
+		}{
+			x: "hello",
+		},
 		wantOutput: "d8:my-field5:helloe"},
-	{name: "multi-field struct", in: struct {
-		x string `key:"my-field-1"`
-		y string `key:"my-field-2"`
-		z int    `key:"my-field-3"`
-	}{
-		x: "hello",
-		y: "world",
-		z: 123,
+
+	{
+		name: "multi-field struct",
+		in: struct {
+			x string `key:"my-field-1"`
+			y string `key:"my-field-2"`
+			z int    `key:"my-field-3"`
+		}{
+			x: "hello",
+			y: "world",
+			z: 123,
+		},
+		wantOutput: "d10:my-field-15:hello10:my-field-25:world10:my-field-3i123ee",
 	},
-		wantOutput: "d10:my-field-15:hello10:my-field-25:world10:my-field-3i123ee"},
+
+	{
+		name: "missing tag struct",
+		in: struct {
+			x string
+		}{
+			x: "hello",
+		},
+		wantErr: "found struct field with no 'key' tag",
+	},
+
+	{
+		name: "incorrect tag struct",
+		in: struct {
+			x string `bad-tag-name:"my-field"`
+		}{
+			x: "hello",
+		},
+		wantErr: "found struct field with no 'key' tag",
+	},
+
+	{
+		name: "list-containing struct",
+		in: struct {
+			stringArray [3]string `key:"string-array"`
+			stringSlice []string  `key:"string-slice"`
+		}{
+			stringArray: [3]string{"a", "b", "c"},
+			stringSlice: []string{"x", "y", "z"},
+		},
+		wantOutput: "d12:string-arrayl1:a1:b1:ce12:string-slicel1:x1:y1:zee",
+	},
 }
 
 func TestEncode(t *testing.T) {
