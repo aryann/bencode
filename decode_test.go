@@ -35,10 +35,31 @@ var decodeTests = []struct {
 		wantErr: "expected integer at offset 1"},
 
 	{name: "unterminated integer", in: "i123", outputArg: new(int),
-		wantErr: "expected integer termination at offset 4"},
+		wantErr: "expected integer terminator at offset 4"},
 
 	{name: "incorrectly-terminated integer", in: "i123wrong_terminator", outputArg: new(int),
 		wantErr: "expected terminator 'e' for integer at offset 0"},
+
+	// TODO: Figure out why the empty list comparison doesn't work.
+
+	{name: "single-element integer list", in: "li651e", outputArg: new([]int),
+		wantOutput: []int{651}},
+	{name: "multi-element integer list", in: "li651ee", outputArg: new([]int),
+		wantOutput: []int{651}},
+
+	// TODO: Uncomment these test cases once we support string deserialization.
+	//
+	// {name: "single-element string list", in: "l3:abce", outputArg: new([]string),
+	// 	wantOutput: []string{"abc"}},
+	// {name: "multi-element string list", in: "l3:abc2:de1:fe", outputArg: new([]string),
+	//  wantOutput: []string{"abc", "de", "f"}},
+
+	{name: "unterminated list 1", in: "li651e", outputArg: new([]int),
+		wantErr: "expected terminator for list at offset 6"},
+	{name: "unterminated list 2", in: "li651ewrong_terminator", outputArg: new([]int),
+		wantErr: "expected start of integer, string, list, or dictionary at offset 6"},
+	{name: "unterminated list item", in: "li651", outputArg: new([]int),
+		wantErr: "expected integer terminator at offset 5"},
 }
 
 func TestDecode(t *testing.T) {
