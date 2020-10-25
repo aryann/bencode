@@ -110,7 +110,7 @@ func unmarshalInt(offset int, data string, value reflect.Value) (int, error) {
 
 func unmarshalList(offset int, data string, value reflect.Value) (int, error) {
 	offset++ // Consume 'l'.
-	elemType := value.Type().Elem().Elem()
+	elemType := value.Elem().Type().Elem()
 
 	for offset < len(data) && data[offset] != terminator {
 		newValue := reflect.New(elemType)
@@ -120,7 +120,7 @@ func unmarshalList(offset int, data string, value reflect.Value) (int, error) {
 			return 0, err
 		}
 		offset = newOffset
-		value.Elem().Set(reflect.Append(reflect.Indirect(value), reflect.Indirect(newValue)))
+		value.Elem().Set(reflect.Append(value.Elem(), reflect.Indirect(newValue)))
 	}
 
 	if offset >= len(data) || data[offset] != terminator {
@@ -130,6 +130,45 @@ func unmarshalList(offset int, data string, value reflect.Value) (int, error) {
 }
 
 func unmarshalDict(offset int, data string, value reflect.Value) (int, error) {
-	// TODO: Implement this!
+	structValue := value.Elem()
+	structType := structValue.Type()
+	structValues := make(map[string]reflect.Value)
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		key, ok := field.Tag.Lookup("key")
+		if !ok {
+			continue
+		}
+		structValues[key] = structValue.Field(i)
+	}
+
+	offset++ // Consume 'd'.
+	for offset < len(data) && data[offset] != terminator {
+		if !isDigit(data[offset]) {
+			return 0, fmt.Errorf("dictionary key at offset %d is not a string", offset)
+		}
+		start, limit, err := stringIndices(offset, data)
+		if err != nil {
+			return 0, err
+		}
+		key := data[start:limit]
+		value, ok := structValues[key]
+		if !ok {
+			// TODO: This is too restrictive. We should just ignore
+			// unrecognized keys much the same way the json package does.
+			return 0, fmt.Errorf("dictionary contains key '%s' at offset %d which does not exist in the given struct", key, offset)
+		}
+
+		valueOffset := limit
+		newOffset, err := unmarshalNext(valueOffset, data, value)
+		if err != nil {
+			return 0, err
+		}
+		offset = newOffset
+	}
+
+	if offset >= len(data) || data[offset] != terminator {
+		return 0, fmt.Errorf("expected terminator for dictionary at offset %d", offset)
+	}
 	return offset + 1, nil
 }

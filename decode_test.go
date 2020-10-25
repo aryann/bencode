@@ -5,6 +5,13 @@ import (
 	"testing"
 )
 
+type simpleStruct struct {
+	x       int    `key:"x"`
+	y       int    `key:"y"`
+	z       string `key:"z"`
+	unnamed string
+}
+
 var decodeTests = []struct {
 	name       string
 	in         string
@@ -75,8 +82,23 @@ var decodeTests = []struct {
 		wantErr: "expected start of integer, string, list, or dictionary at offset 6"},
 	{name: "unterminated list 3", in: "l3:abc", outputArg: new([]string),
 		wantErr: "expected terminator for list at offset 6"},
+	{name: "unterminated list 4", in: "l", outputArg: new([]string),
+		wantErr: "expected terminator for list at offset 1"},
 	{name: "unterminated list item", in: "li651", outputArg: new([]int),
 		wantErr: "expected terminator for integer at offset 5"},
+
+	{name: "empty dictionary 1", in: "de", outputArg: new(struct{}),
+		wantOutput: struct{}{}},
+	{name: "empty dictionary 2", in: "de", outputArg: new(simpleStruct),
+		wantOutput: simpleStruct{}},
+
+	// TODO: Renable this test.
+	//
+	//{name: "single-entry dictionary", in: "d1:xi651ee", outputArg: new(simpleStruct),
+	//	wantOutput: simpleStruct{}},
+
+	{name: "unterminated dictionary 1", in: "d", outputArg: new(struct{}),
+		wantErr: "expected terminator for dictionary at offset 1"},
 }
 
 func TestDecode(t *testing.T) {
