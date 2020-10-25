@@ -27,7 +27,7 @@ func Unmarshal(data string, v interface{}) error {
 		return err
 	}
 	if i < len(data) {
-		return fmt.Errorf("trailing data at offset %d is not parsable", i)
+		return fmt.Errorf("trailing data at offset %d cannot be parsed", i)
 	}
 	return nil
 }
@@ -35,6 +35,10 @@ func Unmarshal(data string, v interface{}) error {
 func unmarshalNext(offset int, data string, value reflect.Value) (int, error) {
 	if len(data) == 0 {
 		return 0, fmt.Errorf("no data to read at offset %d", offset)
+	}
+
+	if isDigit(data[offset]) {
+		return unmarshalString(offset, data, value)
 	}
 
 	switch data[offset] {
@@ -51,12 +55,35 @@ func isDigit(b byte) bool {
 	return b >= '0' && b <= '9'
 }
 
+func intLimit(offset int, data string) int {
+	for offset < len(data) && isDigit(data[offset]) {
+		offset++
+	}
+	return offset
+}
+
+func unmarshalString(offset int, data string, value reflect.Value) (int, error) {
+	intStart := offset
+	intLimit := intLimit(intStart, data)
+	length, err := strconv.Atoi(data[intStart:intLimit])
+	if err != nil {
+		return 0, fmt.Errorf("could not parse length for string at offset %d", offset)
+	}
+	if intLimit >= len(data) || data[intLimit] != ':' {
+		return 0, fmt.Errorf("expected colon between length and value for string at offset %d", offset)
+	}
+	strStart := intLimit + 1
+	strLimit := strStart + length
+	if strLimit > len(data) {
+		return 0, fmt.Errorf("string at offset %d has length %d, yet there are not that many bytes left", offset, length)
+	}
+	value.Elem().SetString(data[strStart:strLimit])
+	return strLimit, nil
+}
+
 func unmarshalInt(offset int, data string, value reflect.Value) (int, error) {
 	intStart := offset + 1
-	intLimit := intStart + 1
-	for intLimit < len(data) && isDigit(data[intLimit]) {
-		intLimit++
-	}
+	intLimit := intLimit(intStart+1, data) // First character may be a '-'.
 
 	i, err := strconv.Atoi(data[intStart:intLimit])
 	if err != nil {

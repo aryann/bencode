@@ -40,23 +40,41 @@ var decodeTests = []struct {
 	{name: "incorrectly-terminated integer", in: "i123wrong_terminator", outputArg: new(int),
 		wantErr: "expected terminator for integer at offset 4"},
 
+	{name: "empty string 1", in: "0:", outputArg: new(string),
+		wantOutput: ""},
+	{name: "empty string 2", in: "000:", outputArg: new(string),
+		wantOutput: ""},
+	{name: "one letter string", in: "1:a", outputArg: new(string),
+		wantOutput: "a"},
+	{name: "three letter string", in: "3:abc", outputArg: new(string),
+		wantOutput: "abc"},
+
+	{name: "extra data string 1", in: "0:abc", outputArg: new(string),
+		wantErr: "trailing data at offset 2 cannot be parsed"},
+	{name: "extra data string 2", in: "2:abcde", outputArg: new(string),
+		wantErr: "trailing data at offset 4 cannot be parsed"},
+	{name: "unparsable string length", in: "2x3:abcde", outputArg: new(string),
+		wantErr: "expected colon between length and value for string at offset 0"},
+	{name: "incorrect length string", in: "100:abc", outputArg: new(string),
+		wantErr: "string at offset 0 has length 100, yet there are not that many bytes left"},
+
 	{name: "empty list", in: "le", outputArg: new([]int), wantOutput: *new([]int)},
-	{name: "single-element integer list", in: "li651e", outputArg: new([]int),
+	{name: "single-element integer list", in: "li651ee", outputArg: new([]int),
 		wantOutput: []int{651}},
 	{name: "multi-element integer list", in: "li651ee", outputArg: new([]int),
 		wantOutput: []int{651}},
 
-	// TODO: Uncomment these test cases once we support string deserialization.
-	//
-	// {name: "single-element string list", in: "l3:abce", outputArg: new([]string),
-	// 	wantOutput: []string{"abc"}},
-	// {name: "multi-element string list", in: "l3:abc2:de1:fe", outputArg: new([]string),
-	//  wantOutput: []string{"abc", "de", "f"}},
+	{name: "single-element string list", in: "l3:abce", outputArg: new([]string),
+		wantOutput: []string{"abc"}},
+	{name: "multi-element string list", in: "l3:abc2:de1:fe", outputArg: new([]string),
+		wantOutput: []string{"abc", "de", "f"}},
 
 	{name: "unterminated list 1", in: "li651e", outputArg: new([]int),
 		wantErr: "expected terminator for list at offset 6"},
 	{name: "unterminated list 2", in: "li651ewrong_terminator", outputArg: new([]int),
 		wantErr: "expected start of integer, string, list, or dictionary at offset 6"},
+	{name: "unterminated list 3", in: "l3:abc", outputArg: new([]string),
+		wantErr: "expected terminator for list at offset 6"},
 	{name: "unterminated list item", in: "li651", outputArg: new([]int),
 		wantErr: "expected terminator for integer at offset 5"},
 }
@@ -66,7 +84,7 @@ func TestDecode(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			got := reflect.New(reflect.TypeOf(testCase.outputArg).Elem())
 			err := Unmarshal(testCase.in, got.Interface())
-			if testCase.wantErr != "" {
+			if testCase.wantErr != "" || err != nil {
 				if err == nil {
 					t.Errorf("want error with message '%v', got no error", testCase.wantErr)
 				} else if err.Error() != testCase.wantErr {
