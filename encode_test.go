@@ -179,7 +179,7 @@ func TestEncode(t *testing.T) {
 				if err == nil {
 					t.Errorf("got output '%s', want '%s'", out, testCase.wantOutput)
 				} else {
-					t.Errorf("got unexpected error '%v'", err)
+					t.Errorf("got unexpected error: %v", err)
 				}
 			}
 		})
