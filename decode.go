@@ -33,6 +33,7 @@ func Unmarshal(data string, v interface{}) error {
 }
 
 func unmarshalNext(offset int, data string, value reflect.Value) (int, error) {
+	value = value.Elem()
 	if len(data) == 0 {
 		return 0, fmt.Errorf("no data to read at offset %d", offset)
 	}
@@ -87,7 +88,7 @@ func unmarshalString(offset int, data string, value reflect.Value) (int, error) 
 	if err != nil {
 		return 0, err
 	}
-	value.Elem().SetString(data[start:limit])
+	value.SetString(data[start:limit])
 	return limit, nil
 }
 
@@ -104,13 +105,13 @@ func unmarshalInt(offset int, data string, value reflect.Value) (int, error) {
 		return 0, fmt.Errorf("expected terminator for integer at offset %d", intLimit)
 	}
 
-	value.Elem().SetInt(int64(i))
+	value.SetInt(int64(i))
 	return intLimit + 1, nil
 }
 
 func unmarshalList(offset int, data string, value reflect.Value) (int, error) {
 	offset++ // Consume 'l'.
-	elemType := value.Elem().Type().Elem()
+	elemType := value.Type().Elem()
 
 	for offset < len(data) && data[offset] != terminator {
 		newValue := reflect.New(elemType)
@@ -120,7 +121,7 @@ func unmarshalList(offset int, data string, value reflect.Value) (int, error) {
 			return 0, err
 		}
 		offset = newOffset
-		value.Elem().Set(reflect.Append(value.Elem(), reflect.Indirect(newValue)))
+		value.Set(reflect.Append(value, reflect.Indirect(newValue)))
 	}
 
 	if offset >= len(data) || data[offset] != terminator {
@@ -130,7 +131,7 @@ func unmarshalList(offset int, data string, value reflect.Value) (int, error) {
 }
 
 func unmarshalDict(offset int, data string, value reflect.Value) (int, error) {
-	structValue := value.Elem()
+	structValue := value
 	structType := structValue.Type()
 	structValues := make(map[string]reflect.Value)
 	for i := 0; i < structType.NumField(); i++ {
