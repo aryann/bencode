@@ -131,8 +131,7 @@ func unmarshalList(offset int, data string, value reflect.Value) (int, error) {
 }
 
 func unmarshalDict(offset int, data string, value reflect.Value) (int, error) {
-	structValue := value
-	structType := structValue.Type()
+	structType := value.Type()
 	structValues := make(map[string]reflect.Value)
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
@@ -140,7 +139,7 @@ func unmarshalDict(offset int, data string, value reflect.Value) (int, error) {
 		if !ok {
 			continue
 		}
-		structValues[key] = structValue.Field(i)
+		structValues[key] = value.Field(i).Addr()
 	}
 
 	offset++ // Consume 'd'.

@@ -6,10 +6,16 @@ import (
 )
 
 type simpleStruct struct {
-	x       int    `key:"x"`
-	y       int    `key:"y"`
-	z       string `key:"z"`
-	unnamed string
+	X       int    `key:"x"`
+	Y       int    `key:"yy"`
+	Z       string `key:"zzz"`
+	Unnamed string
+}
+
+type compositStruct struct {
+	StringList []string       `key:"strings"`
+	IntList    []int          `key:"ints"`
+	StructList []simpleStruct `key:"structs"`
 }
 
 var decodeTests = []struct {
@@ -92,10 +98,56 @@ var decodeTests = []struct {
 	{name: "empty dictionary 2", in: "de", outputArg: new(simpleStruct),
 		wantOutput: simpleStruct{}},
 
-	// TODO: Renable this test.
-	//
-	//{name: "single-entry dictionary", in: "d1:xi651ee", outputArg: new(simpleStruct),
-	//	wantOutput: simpleStruct{}},
+	{name: "single-entry dictionary", in: "d1:xi651ee", outputArg: new(simpleStruct),
+		wantOutput: simpleStruct{X: 651}},
+	{name: "multi-entry dictionary", in: "d1:xi651e2:yyi123e3:zzz5:helloe",
+		outputArg:  new(simpleStruct),
+		wantOutput: simpleStruct{X: 651, Y: 123, Z: "hello"}},
+
+	{name: "strings composit dictionary 1", in: "d7:stringslee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{}},
+	{name: "strings composit dictionary 2", in: "d7:stringsl1:aee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{StringList: []string{"a"}}},
+	{name: "strings composit dictionary 3", in: "d7:stringsl5:hello6:world!ee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{StringList: []string{"hello", "world!"}}},
+
+	{name: "ints composit dictionary 1", in: "d4:intslee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{}},
+	{name: "ints composit dictionary 2", in: "d4:intsli651eee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{IntList: []int{651}}},
+	{name: "ints composit dictionary 3", in: "d4:intsli1ei2ei3eee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{IntList: []int{1, 2, 3}}},
+
+	{name: "structs composit dictionary 1", in: "d7:structslee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{}},
+	{name: "structs composit dictionary 2", in: "d7:structsldeee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{StructList: []simpleStruct{{}}}},
+	{name: "structs composit dictionary 3", in: "d7:structsldededeee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{StructList: []simpleStruct{{}, {}, {}}}},
+	{name: "structs composit dictionary 4", in: "d7:structsld1:xi651eeee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{StructList: []simpleStruct{{X: 651}}}},
+	{name: "structs composit dictionary 5",
+		in:         "d7:structsld1:xi651e2:yyi600e3:zzz5:helloeee",
+		outputArg:  new(compositStruct),
+		wantOutput: compositStruct{StructList: []simpleStruct{{X: 651, Y: 600, Z: "hello"}}}},
+	{name: "structs composit dictionary 6",
+		in:        "d7:structsld1:xi651e2:yyi600e3:zzz5:helloed1:xi751e2:yyi700e3:zzz7:goodbyeed1:xi851e2:yyi800e3:zzz5:helloeee",
+		outputArg: new(compositStruct),
+		wantOutput: compositStruct{StructList: []simpleStruct{
+			{X: 651, Y: 600, Z: "hello"},
+			{X: 751, Y: 700, Z: "goodbye"},
+			{X: 851, Y: 800, Z: "hello"},
+		}}},
 
 	{name: "unterminated dictionary 1", in: "d", outputArg: new(struct{}),
 		wantErr: "expected terminator for dictionary at offset 1"},
