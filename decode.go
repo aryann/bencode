@@ -44,7 +44,7 @@ func unmarshalInt(offset int, data string, ptr *reflect.Value) error {
 	data = data[1 : len(data)-1]
 	i, err := strconv.Atoi(data)
 	if err != nil {
-		return fmt.Errorf("could not parse integer at offset %d: %w", offset, err)
+		return fmt.Errorf("could not parse integer at offset %d: %s", offset, data)
 	}
 	value.SetInt(int64(i))
 	return nil
