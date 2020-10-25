@@ -29,16 +29,16 @@ var decodeTests = []struct {
 		wantErr: "expected integer at offset 1"},
 
 	{name: "malformed integer 3", in: "i0x80e", outputArg: new(int),
-		wantErr: "expected terminator 'e' for integer at offset 0"},
+		wantErr: "expected terminator for integer at offset 2"},
 
 	{name: "not an integer", in: "iNOT_A_NUMBERe", outputArg: new(int),
 		wantErr: "expected integer at offset 1"},
 
 	{name: "unterminated integer", in: "i123", outputArg: new(int),
-		wantErr: "expected integer terminator at offset 4"},
+		wantErr: "expected terminator for integer at offset 4"},
 
 	{name: "incorrectly-terminated integer", in: "i123wrong_terminator", outputArg: new(int),
-		wantErr: "expected terminator 'e' for integer at offset 0"},
+		wantErr: "expected terminator for integer at offset 4"},
 
 	// TODO: Figure out why the empty list comparison doesn't work.
 
@@ -59,7 +59,7 @@ var decodeTests = []struct {
 	{name: "unterminated list 2", in: "li651ewrong_terminator", outputArg: new([]int),
 		wantErr: "expected start of integer, string, list, or dictionary at offset 6"},
 	{name: "unterminated list item", in: "li651", outputArg: new([]int),
-		wantErr: "expected integer terminator at offset 5"},
+		wantErr: "expected terminator for integer at offset 5"},
 }
 
 func TestDecode(t *testing.T) {

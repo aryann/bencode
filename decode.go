@@ -63,11 +63,8 @@ func unmarshalInt(offset int, data string, value reflect.Value) (int, error) {
 		return 0, fmt.Errorf("expected integer at offset %d", intStart)
 	}
 
-	if intLimit >= len(data) {
-		return 0, fmt.Errorf("expected integer terminator at offset %d", intLimit)
-	}
-	if data[intLimit] != terminator {
-		return 0, fmt.Errorf("expected terminator '%s' for integer at offset %d", string(terminator), offset)
+	if intLimit >= len(data) || data[intLimit] != terminator {
+		return 0, fmt.Errorf("expected terminator for integer at offset %d", intLimit)
 	}
 
 	value.Elem().SetInt(int64(i))
