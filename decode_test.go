@@ -40,8 +40,7 @@ var decodeTests = []struct {
 	{name: "incorrectly-terminated integer", in: "i123wrong_terminator", outputArg: new(int),
 		wantErr: "expected terminator for integer at offset 4"},
 
-	// TODO: Figure out why the empty list comparison doesn't work.
-
+	{name: "empty list", in: "le", outputArg: new([]int), wantOutput: *new([]int)},
 	{name: "single-element integer list", in: "li651e", outputArg: new([]int),
 		wantOutput: []int{651}},
 	{name: "multi-element integer list", in: "li651ee", outputArg: new([]int),
@@ -75,6 +74,7 @@ func TestDecode(t *testing.T) {
 				}
 				return
 			}
+
 			if !reflect.DeepEqual(got.Elem().Interface(), testCase.wantOutput) {
 				if err == nil {
 					t.Errorf("got output '%+v', want '%+v'", got.Elem().Interface(), testCase.wantOutput)
