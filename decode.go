@@ -46,6 +46,8 @@ func unmarshalNext(offset int, data string, value reflect.Value) (int, error) {
 		return unmarshalInt(offset, data, value)
 	case list:
 		return unmarshalList(offset, data, value)
+	case dictionary:
+		return unmarshalDict(offset, data, value)
 	default:
 		return 0, fmt.Errorf("expected start of integer, string, list, or dictionary at offset %d", offset)
 	}
@@ -62,23 +64,31 @@ func intLimit(offset int, data string) int {
 	return offset
 }
 
-func unmarshalString(offset int, data string, value reflect.Value) (int, error) {
+func stringIndices(offset int, data string) (int, int, error) {
 	intStart := offset
 	intLimit := intLimit(intStart, data)
 	length, err := strconv.Atoi(data[intStart:intLimit])
 	if err != nil {
-		return 0, fmt.Errorf("could not parse length for string at offset %d", offset)
+		return 0, 0, fmt.Errorf("could not parse length for string at offset %d", offset)
 	}
 	if intLimit >= len(data) || data[intLimit] != ':' {
-		return 0, fmt.Errorf("expected colon between length and value for string at offset %d", offset)
+		return 0, 0, fmt.Errorf("expected colon between length and value for string at offset %d", offset)
 	}
 	strStart := intLimit + 1
 	strLimit := strStart + length
 	if strLimit > len(data) {
-		return 0, fmt.Errorf("string at offset %d has length %d, yet there are not that many bytes left", offset, length)
+		return 0, 0, fmt.Errorf("string at offset %d has length %d, yet there are not that many bytes left", offset, length)
 	}
-	value.Elem().SetString(data[strStart:strLimit])
-	return strLimit, nil
+	return strStart, strLimit, nil
+}
+
+func unmarshalString(offset int, data string, value reflect.Value) (int, error) {
+	start, limit, err := stringIndices(offset, data)
+	if err != nil {
+		return 0, err
+	}
+	value.Elem().SetString(data[start:limit])
+	return limit, nil
 }
 
 func unmarshalInt(offset int, data string, value reflect.Value) (int, error) {
@@ -99,9 +109,9 @@ func unmarshalInt(offset int, data string, value reflect.Value) (int, error) {
 }
 
 func unmarshalList(offset int, data string, value reflect.Value) (int, error) {
+	offset++ // Consume 'l'.
 	elemType := value.Type().Elem().Elem()
 
-	offset++ // Consume 'l'.
 	for offset < len(data) && data[offset] != terminator {
 		newValue := reflect.New(elemType)
 
@@ -116,5 +126,10 @@ func unmarshalList(offset int, data string, value reflect.Value) (int, error) {
 	if offset >= len(data) || data[offset] != terminator {
 		return 0, fmt.Errorf("expected terminator for list at offset %d", offset)
 	}
+	return offset + 1, nil
+}
+
+func unmarshalDict(offset int, data string, value reflect.Value) (int, error) {
+	// TODO: Implement this!
 	return offset + 1, nil
 }
