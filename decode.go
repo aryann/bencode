@@ -14,7 +14,7 @@ const (
 )
 
 // Unmarshal deserializes a Bencode string.
-func Unmarshal(data string, v interface{}) error {
+func Unmarshal(data []byte, v interface{}) error {
 	// TODO: Don't modify the interface until we know the full output is valid.
 
 	value := reflect.ValueOf(v)
@@ -76,7 +76,7 @@ func (noOpValueSetter) SetString(value reflect.Value, s string)         {}
 func (noOpValueSetter) Append(target reflect.Value, elem reflect.Value) {}
 
 type decoder struct {
-	data        string
+	data        []byte
 	ValueSetter valueSetterInterface
 }
 
@@ -97,26 +97,25 @@ func (d *decoder) unmarshalNext(offset int, value reflect.Value) (int, error) {
 		return d.unmarshalList(offset, value)
 	case dictionary:
 		return d.unmarshalDict(offset, value)
-	default:
-		return 0, fmt.Errorf("expected start of integer, string, list, or dictionary at offset %d", offset)
 	}
+	return 0, fmt.Errorf("expected start of integer, string, list, or dictionary at offset %d", offset)
 }
 
 func isDigit(b byte) bool {
 	return b >= '0' && b <= '9'
 }
 
-func intLimit(offset int, data string) int {
+func intLimit(offset int, data []byte) int {
 	for offset < len(data) && isDigit(data[offset]) {
 		offset++
 	}
 	return offset
 }
 
-func stringIndices(offset int, data string) (int, int, error) {
+func stringIndices(offset int, data []byte) (int, int, error) {
 	intStart := offset
 	intLimit := intLimit(intStart, data)
-	length, err := strconv.Atoi(data[intStart:intLimit])
+	length, err := strconv.Atoi(string(data[intStart:intLimit]))
 	if err != nil {
 		return 0, 0, fmt.Errorf("could not parse length for string at offset %d", offset)
 	}
@@ -136,7 +135,7 @@ func (d *decoder) unmarshalString(offset int, value reflect.Value) (int, error) 
 	if err != nil {
 		return 0, err
 	}
-	d.ValueSetter.SetString(value, d.data[start:limit])
+	d.ValueSetter.SetString(value, string(d.data[start:limit]))
 	return limit, nil
 }
 
@@ -144,7 +143,7 @@ func (d *decoder) unmarshalInt(offset int, value reflect.Value) (int, error) {
 	intStart := offset + 1
 	intLimit := intLimit(intStart+1, d.data) // First character may be a '-'.
 
-	i, err := strconv.Atoi(d.data[intStart:intLimit])
+	i, err := strconv.Atoi(string(d.data[intStart:intLimit]))
 	if err != nil {
 		return 0, fmt.Errorf("expected integer at offset %d", intStart)
 	}
@@ -198,7 +197,7 @@ func (d *decoder) unmarshalDict(offset int, value reflect.Value) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		key := d.data[start:limit]
+		key := string(d.data[start:limit])
 		value, ok := structValues[key]
 		if !ok {
 			// TODO: This is too restrictive. We should just ignore

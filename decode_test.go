@@ -176,7 +176,7 @@ func TestDecode(t *testing.T) {
 	for _, testCase := range decodeTests {
 		t.Run(testCase.name, func(t *testing.T) {
 			got := reflect.New(reflect.TypeOf(testCase.outputArg))
-			err := Unmarshal(testCase.in, got.Interface())
+			err := Unmarshal([]byte(testCase.in), got.Interface())
 			if testCase.wantErr != "" || err != nil {
 				if err == nil {
 					t.Errorf("want error with message '%v', got no error", testCase.wantErr)
