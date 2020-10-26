@@ -175,7 +175,7 @@ func TestEncode(t *testing.T) {
 					t.Errorf("got error '%v', want '%v'", err, testCase.wantErr)
 				}
 			}
-			if out != testCase.wantOutput {
+			if string(out) != testCase.wantOutput {
 				if err == nil {
 					t.Errorf("got output '%s', want '%s'", out, testCase.wantOutput)
 				} else {
