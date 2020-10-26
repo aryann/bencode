@@ -22,33 +22,81 @@ func Unmarshal(data string, v interface{}) error {
 		return fmt.Errorf("v is not a non-nil pointer: %s", reflect.TypeOf((v)))
 	}
 
-	i, err := unmarshalNext(0, data, value)
+	// First run through the input using a no-op valueSetter. This allows us
+	// to report an error if the input in malformed without making any partial
+	// modifications to the output parameter v.
+	validator := decoder{
+		data:        data,
+		ValueSetter: noOpValueSetter{},
+	}
+	i, err := validator.unmarshalNext(0, value)
 	if err != nil {
 		return err
 	}
 	if i < len(data) {
 		return fmt.Errorf("trailing data at offset %d cannot be parsed", i)
 	}
-	return nil
+
+	// The input is valid, so now we do our second pass over the input and
+	// fill the output parameter.
+	decoder := decoder{
+		data:        data,
+		ValueSetter: valueSetter{},
+	}
+	_, err = decoder.unmarshalNext(0, value)
+	return err
 }
 
-func unmarshalNext(offset int, data string, value reflect.Value) (int, error) {
+// valueSetterInterface abstracts a subset of the reflect.Value modifiers.
+type valueSetterInterface interface {
+	SetInt(value reflect.Value, i int64)
+	SetString(value reflect.Value, s string)
+	Append(target reflect.Value, elem reflect.Value)
+}
+
+// valueSetter delegates directly to the reflect.Value modifiers.
+type valueSetter struct{}
+
+func (valueSetter) SetInt(value reflect.Value, i int64) {
+	value.SetInt(i)
+}
+func (valueSetter) SetString(value reflect.Value, s string) {
+	value.SetString(s)
+}
+func (valueSetter) Append(target reflect.Value, elem reflect.Value) {
+	target.Set(reflect.Append(target, reflect.Indirect(elem)))
+}
+
+// noOpValueSetter is a valueSetterInterface that does nothing. This is useful
+// during the validation phase of deserialization.
+type noOpValueSetter struct{}
+
+func (noOpValueSetter) SetInt(value reflect.Value, i int64)             {}
+func (noOpValueSetter) SetString(value reflect.Value, s string)         {}
+func (noOpValueSetter) Append(target reflect.Value, elem reflect.Value) {}
+
+type decoder struct {
+	data        string
+	ValueSetter valueSetterInterface
+}
+
+func (d *decoder) unmarshalNext(offset int, value reflect.Value) (int, error) {
 	value = value.Elem()
-	if len(data) == 0 {
+	if len(d.data) == 0 {
 		return 0, fmt.Errorf("no data to read at offset %d", offset)
 	}
 
-	if isDigit(data[offset]) {
-		return unmarshalString(offset, data, value)
+	if isDigit(d.data[offset]) {
+		return d.unmarshalString(offset, value)
 	}
 
-	switch data[offset] {
+	switch d.data[offset] {
 	case integer:
-		return unmarshalInt(offset, data, value)
+		return d.unmarshalInt(offset, value)
 	case list:
-		return unmarshalList(offset, data, value)
+		return d.unmarshalList(offset, value)
 	case dictionary:
-		return unmarshalDict(offset, data, value)
+		return d.unmarshalDict(offset, value)
 	default:
 		return 0, fmt.Errorf("expected start of integer, string, list, or dictionary at offset %d", offset)
 	}
@@ -83,54 +131,53 @@ func stringIndices(offset int, data string) (int, int, error) {
 	return strStart, strLimit, nil
 }
 
-func unmarshalString(offset int, data string, value reflect.Value) (int, error) {
-	start, limit, err := stringIndices(offset, data)
+func (d *decoder) unmarshalString(offset int, value reflect.Value) (int, error) {
+	start, limit, err := stringIndices(offset, d.data)
 	if err != nil {
 		return 0, err
 	}
-	value.SetString(data[start:limit])
+	d.ValueSetter.SetString(value, d.data[start:limit])
 	return limit, nil
 }
 
-func unmarshalInt(offset int, data string, value reflect.Value) (int, error) {
+func (d *decoder) unmarshalInt(offset int, value reflect.Value) (int, error) {
 	intStart := offset + 1
-	intLimit := intLimit(intStart+1, data) // First character may be a '-'.
+	intLimit := intLimit(intStart+1, d.data) // First character may be a '-'.
 
-	i, err := strconv.Atoi(data[intStart:intLimit])
+	i, err := strconv.Atoi(d.data[intStart:intLimit])
 	if err != nil {
 		return 0, fmt.Errorf("expected integer at offset %d", intStart)
 	}
 
-	if intLimit >= len(data) || data[intLimit] != terminator {
+	if intLimit >= len(d.data) || d.data[intLimit] != terminator {
 		return 0, fmt.Errorf("expected terminator for integer at offset %d", intLimit)
 	}
 
-	value.SetInt(int64(i))
+	d.ValueSetter.SetInt(value, int64(i))
 	return intLimit + 1, nil
 }
 
-func unmarshalList(offset int, data string, value reflect.Value) (int, error) {
+func (d *decoder) unmarshalList(offset int, value reflect.Value) (int, error) {
 	offset++ // Consume 'l'.
 	elemType := value.Type().Elem()
 
-	for offset < len(data) && data[offset] != terminator {
-		newValue := reflect.New(elemType)
-
-		newOffset, err := unmarshalNext(offset, data, newValue)
+	for offset < len(d.data) && d.data[offset] != terminator {
+		elem := reflect.New(elemType)
+		newOffset, err := d.unmarshalNext(offset, elem)
 		if err != nil {
 			return 0, err
 		}
 		offset = newOffset
-		value.Set(reflect.Append(value, reflect.Indirect(newValue)))
+		d.ValueSetter.Append(value, elem)
 	}
 
-	if offset >= len(data) || data[offset] != terminator {
+	if offset >= len(d.data) || d.data[offset] != terminator {
 		return 0, fmt.Errorf("expected terminator for list at offset %d", offset)
 	}
 	return offset + 1, nil
 }
 
-func unmarshalDict(offset int, data string, value reflect.Value) (int, error) {
+func (d *decoder) unmarshalDict(offset int, value reflect.Value) (int, error) {
 	structType := value.Type()
 	structValues := make(map[string]reflect.Value)
 	for i := 0; i < structType.NumField(); i++ {
@@ -143,15 +190,15 @@ func unmarshalDict(offset int, data string, value reflect.Value) (int, error) {
 	}
 
 	offset++ // Consume 'd'.
-	for offset < len(data) && data[offset] != terminator {
-		if !isDigit(data[offset]) {
+	for offset < len(d.data) && d.data[offset] != terminator {
+		if !isDigit(d.data[offset]) {
 			return 0, fmt.Errorf("dictionary key at offset %d is not a string", offset)
 		}
-		start, limit, err := stringIndices(offset, data)
+		start, limit, err := stringIndices(offset, d.data)
 		if err != nil {
 			return 0, err
 		}
-		key := data[start:limit]
+		key := d.data[start:limit]
 		value, ok := structValues[key]
 		if !ok {
 			// TODO: This is too restrictive. We should just ignore
@@ -160,14 +207,14 @@ func unmarshalDict(offset int, data string, value reflect.Value) (int, error) {
 		}
 
 		valueOffset := limit
-		newOffset, err := unmarshalNext(valueOffset, data, value)
+		newOffset, err := d.unmarshalNext(valueOffset, value)
 		if err != nil {
 			return 0, err
 		}
 		offset = newOffset
 	}
 
-	if offset >= len(data) || data[offset] != terminator {
+	if offset >= len(d.data) || d.data[offset] != terminator {
 		return 0, fmt.Errorf("expected terminator for dictionary at offset %d", offset)
 	}
 	return offset + 1, nil

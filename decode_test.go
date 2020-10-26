@@ -26,32 +26,40 @@ var decodeTests = []struct {
 	wantOutput interface{}
 }{
 	{name: "empty input", in: "", outputArg: "",
-		wantErr: "no data to read at offset 0"},
+		wantOutput: "",
+		wantErr:    "no data to read at offset 0"},
 
 	{name: "zero integer", in: "i0e", outputArg: 0, wantOutput: 0},
 	{name: "positive integer", in: "i651e", outputArg: 0, wantOutput: 651},
 	{name: "negative integer", in: "i-601e", outputArg: 0, wantOutput: -601},
 
 	{name: "missing integer", in: "ie", outputArg: 0,
-		wantErr: "expected integer at offset 1"},
+		wantOutput: 0,
+		wantErr:    "expected integer at offset 1"},
 
 	{name: "malformed integer 1", in: "i-e", outputArg: 0,
-		wantErr: "expected integer at offset 1"},
+		wantOutput: 0,
+		wantErr:    "expected integer at offset 1"},
 
 	{name: "malformed integer 2", in: "i*e", outputArg: 0,
-		wantErr: "expected integer at offset 1"},
+		wantOutput: 0,
+		wantErr:    "expected integer at offset 1"},
 
 	{name: "malformed integer 3", in: "i0x80e", outputArg: 0,
-		wantErr: "expected terminator for integer at offset 2"},
+		wantOutput: 0,
+		wantErr:    "expected terminator for integer at offset 2"},
 
 	{name: "not an integer", in: "iNOT_A_NUMBERe", outputArg: 0,
-		wantErr: "expected integer at offset 1"},
+		wantOutput: 0,
+		wantErr:    "expected integer at offset 1"},
 
 	{name: "unterminated integer", in: "i123", outputArg: 0,
-		wantErr: "expected terminator for integer at offset 4"},
+		wantOutput: 0,
+		wantErr:    "expected terminator for integer at offset 4"},
 
 	{name: "incorrectly-terminated integer", in: "i123wrong_terminator", outputArg: 0,
-		wantErr: "expected terminator for integer at offset 4"},
+		wantOutput: 0,
+		wantErr:    "expected terminator for integer at offset 4"},
 
 	{name: "empty string 1", in: "0:", outputArg: "",
 		wantOutput: ""},
@@ -63,13 +71,18 @@ var decodeTests = []struct {
 		wantOutput: "abc"},
 
 	{name: "extra data string 1", in: "0:abc", outputArg: "",
-		wantErr: "trailing data at offset 2 cannot be parsed"},
+		wantOutput: "",
+		wantErr:    "trailing data at offset 2 cannot be parsed"},
+
 	{name: "extra data string 2", in: "2:abcde", outputArg: "",
-		wantErr: "trailing data at offset 4 cannot be parsed"},
+		wantOutput: "",
+		wantErr:    "trailing data at offset 4 cannot be parsed"},
 	{name: "unparsable string length", in: "2x3:abcde", outputArg: "",
-		wantErr: "expected colon between length and value for string at offset 0"},
+		wantOutput: "",
+		wantErr:    "expected colon between length and value for string at offset 0"},
 	{name: "incorrect length string", in: "100:abc", outputArg: "",
-		wantErr: "string at offset 0 has length 100, yet there are not that many bytes left"},
+		wantOutput: "",
+		wantErr:    "string at offset 0 has length 100, yet there are not that many bytes left"},
 
 	{name: "empty list", in: "le", outputArg: []int{}, wantOutput: *new([]int)},
 	{name: "single-element integer list", in: "li651ee", outputArg: []int{},
@@ -83,15 +96,20 @@ var decodeTests = []struct {
 		wantOutput: []string{"abc", "de", "f"}},
 
 	{name: "unterminated list 1", in: "li651e", outputArg: []int{},
-		wantErr: "expected terminator for list at offset 6"},
+		wantOutput: *new([]int),
+		wantErr:    "expected terminator for list at offset 6"},
 	{name: "unterminated list 2", in: "li651ewrong_terminator", outputArg: []int{},
-		wantErr: "expected start of integer, string, list, or dictionary at offset 6"},
+		wantOutput: *new([]int),
+		wantErr:    "expected start of integer, string, list, or dictionary at offset 6"},
 	{name: "unterminated list 3", in: "l3:abc", outputArg: []string{},
-		wantErr: "expected terminator for list at offset 6"},
+		wantOutput: *new([]string),
+		wantErr:    "expected terminator for list at offset 6"},
 	{name: "unterminated list 4", in: "l", outputArg: []string{},
-		wantErr: "expected terminator for list at offset 1"},
+		wantOutput: *new([]string),
+		wantErr:    "expected terminator for list at offset 1"},
 	{name: "unterminated list item", in: "li651", outputArg: []int{},
-		wantErr: "expected terminator for integer at offset 5"},
+		wantOutput: *new([]int),
+		wantErr:    "expected terminator for integer at offset 5"},
 
 	{name: "empty dictionary 1", in: "de", outputArg: struct{}{},
 		wantOutput: struct{}{}},
@@ -150,7 +168,8 @@ var decodeTests = []struct {
 		}}},
 
 	{name: "unterminated dictionary 1", in: "d", outputArg: struct{}{},
-		wantErr: "expected terminator for dictionary at offset 1"},
+		wantOutput: struct{}{},
+		wantErr:    "expected terminator for dictionary at offset 1"},
 }
 
 func TestDecode(t *testing.T) {
@@ -164,15 +183,10 @@ func TestDecode(t *testing.T) {
 				} else if err.Error() != testCase.wantErr {
 					t.Errorf("got error '%v', want '%v'", err, testCase.wantErr)
 				}
-				return
 			}
 
 			if !reflect.DeepEqual(got.Elem().Interface(), testCase.wantOutput) {
-				if err == nil {
-					t.Errorf("got output '%+v', want '%+v'", got.Elem().Interface(), testCase.wantOutput)
-				} else {
-					t.Errorf("got unexpected error: %v", err)
-				}
+				t.Errorf("got output '%+v', want '%+v'", got.Elem().Interface(), testCase.wantOutput)
 			}
 		})
 	}
