@@ -4,6 +4,8 @@ Package `bencode` implements encoding and decoding of the
 [Bencode](https://en.wikipedia.org/wiki/Bencode) serialization format. Bencode
 is used by the peer-to-peer file sharing system BitTorrent.
 
+[![Build Status](https://travis-ci.org/aryann/bencode.svg?branch=main)](https://travis-ci.org/aryann/bencode)
+
 ## Installation
 
 To install this package, run:
