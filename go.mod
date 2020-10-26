@@ -1,3 +1,3 @@
-module aryan.app/bencode
+module github.com/aryann/bencode
 
 go 1.15
