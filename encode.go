@@ -84,15 +84,15 @@ func marshalList(v reflect.Value, buf *bytes.Buffer) error {
 }
 
 // marshalStruct serializes a struct. Each field in the struct must have a
-// tag named "key" that specifies the key to use in the output. Per Bencode
+// tag named "bencode" that specifies the key to use in the output. Per Bencode
 // specifications, the keys are ordered in the serialized output.
 func marshalStruct(v reflect.Value, buf *bytes.Buffer) error {
 	keys := make([]string, v.NumField())
 	keyToIndex := make(map[string]int, v.NumField())
 	for i := 0; i < v.NumField(); i++ {
-		key := v.Type().Field(i).Tag.Get("key")
+		key := v.Type().Field(i).Tag.Get("bencode")
 		if key == "" {
-			return fmt.Errorf("found struct field with no 'key' tag")
+			return fmt.Errorf("found struct field with no 'bencode' tag")
 		}
 		keys[i] = key
 		keyToIndex[key] = i

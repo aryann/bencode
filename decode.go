@@ -214,7 +214,7 @@ func (d *decoder) unmarshalDict(value *reflect.Value) error {
 		structType := value.Elem().Type()
 		for i := 0; i < structType.NumField(); i++ {
 			field := structType.Field(i)
-			key, ok := field.Tag.Lookup("key")
+			key, ok := field.Tag.Lookup("bencode")
 			if !ok {
 				continue
 			}

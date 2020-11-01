@@ -6,16 +6,16 @@ import (
 )
 
 type simpleStruct struct {
-	X       int64  `key:"x"`
-	Y       int64  `key:"yy"`
-	Z       string `key:"zzz"`
+	X       int64  `bencode:"x"`
+	Y       int64  `bencode:"yy"`
+	Z       string `bencode:"zzz"`
 	Unnamed string
 }
 
 type compositStruct struct {
-	StringList []string       `key:"strings"`
-	IntList    []int64        `key:"ints"`
-	StructList []simpleStruct `key:"structs"`
+	StringList []string       `bencode:"strings"`
+	IntList    []int64        `bencode:"ints"`
+	StructList []simpleStruct `bencode:"structs"`
 }
 
 var decodeTests = []struct {

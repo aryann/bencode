@@ -64,7 +64,7 @@ var encodeTests = []struct {
 
 	{name: "single-field struct",
 		in: struct {
-			x string `key:"my-field"`
+			x string `bencode:"my-field"`
 		}{
 			x: "hello",
 		},
@@ -73,9 +73,9 @@ var encodeTests = []struct {
 	{
 		name: "multi-field struct",
 		in: struct {
-			x string `key:"my-field-1"`
-			y string `key:"my-field-2"`
-			z int    `key:"my-field-3"`
+			x string `bencode:"my-field-1"`
+			y string `bencode:"my-field-2"`
+			z int    `bencode:"my-field-3"`
 		}{
 			x: "hello",
 			y: "world",
@@ -91,7 +91,7 @@ var encodeTests = []struct {
 		}{
 			x: "hello",
 		},
-		wantErr: "found struct field with no 'key' tag",
+		wantErr: "found struct field with no 'bencode' tag",
 	},
 
 	{
@@ -101,14 +101,14 @@ var encodeTests = []struct {
 		}{
 			x: "hello",
 		},
-		wantErr: "found struct field with no 'key' tag",
+		wantErr: "found struct field with no 'bencode' tag",
 	},
 
 	{
 		name: "list-containing struct",
 		in: struct {
-			stringArray [3]string `key:"string-array"`
-			stringSlice []string  `key:"string-slice"`
+			stringArray [3]string `bencode:"string-array"`
+			stringSlice []string  `bencode:"string-slice"`
 		}{
 			stringArray: [3]string{"a", "b", "c"},
 			stringSlice: []string{"x", "y", "z"},
@@ -120,40 +120,40 @@ var encodeTests = []struct {
 		name: "struct-containing struct",
 		in: struct {
 			structField struct {
-				a int `key:"a"`
-				b int `key:"b"`
-			} `key:"struct"`
+				a int `bencode:"a"`
+				b int `bencode:"b"`
+			} `bencode:"struct"`
 			structArray [3]struct {
-				c int `key:"c"`
-			} `key:"struct-array"`
+				c int `bencode:"c"`
+			} `bencode:"struct-array"`
 			structSlice []struct {
-				d int `key:"d"`
-			} `key:"struct-slice"`
+				d int `bencode:"d"`
+			} `bencode:"struct-slice"`
 		}{
 			structField: struct {
-				a int `key:"a"`
-				b int `key:"b"`
+				a int `bencode:"a"`
+				b int `bencode:"b"`
 			}{
 				a: 123,
 				b: 456,
 			},
 			structArray: [3]struct {
-				c int `key:"c"`
+				c int `bencode:"c"`
 			}{{c: 1}, {c: 2}, {c: 3}},
 			structSlice: []struct {
-				d int `key:"d"`
+				d int `bencode:"d"`
 			}{{d: 1}, {d: 2}, {d: 3}},
 		},
 		wantOutput: "d6:structd1:ai123e1:bi456ee12:struct-arrayld1:ci1eed1:ci2eed1:ci3eee12:struct-sliceld1:di1eed1:di2eed1:di3eeee",
 	},
 
 	{
-		name: "key sorting in struct",
+		name: "bencode sorting in struct",
 		in: struct {
-			c    string `key:"c"`
-			b    string `key:"b"`
-			a    string `key:"a"`
-			zero string `key:"0"`
+			c    string `bencode:"c"`
+			b    string `bencode:"b"`
+			a    string `bencode:"a"`
+			zero string `bencode:"0"`
 		}{
 			c:    "C",
 			b:    "B",
