@@ -143,7 +143,7 @@ func (d *decoder) unmarshalString(value *reflect.Value) error {
 
 	if value != nil {
 		if value.Elem().Type().Kind() != reflect.String {
-			return fmt.Errorf("expected string")
+			return fmt.Errorf("cannot unmarshal string at offset %d into %s", d.offset, value.Elem().Type())
 		}
 		d.valueSetter.SetString(value, string(d.data[start:limit]))
 	}
@@ -166,7 +166,7 @@ func (d *decoder) unmarshalInt(value *reflect.Value) error {
 
 	if value != nil {
 		if value.Elem().Type().Kind() != reflect.Int64 {
-			return fmt.Errorf("expected int64")
+			return fmt.Errorf("cannot unmarshal integer at offset %d into %s", d.offset, value.Elem().Type())
 		}
 		d.valueSetter.SetInt(value, int64(i))
 	}
@@ -175,6 +175,10 @@ func (d *decoder) unmarshalInt(value *reflect.Value) error {
 }
 
 func (d *decoder) unmarshalList(value *reflect.Value) error {
+	if value != nil && value.Elem().Type().Kind() != reflect.Slice {
+		return fmt.Errorf("cannot unmarshal list at offset %d into %s", d.offset, value.Elem().Type())
+	}
+
 	d.offset++ // Consume 'l'.
 
 	for d.offset < len(d.data) && d.data[d.offset] != terminator {
@@ -201,6 +205,10 @@ func (d *decoder) unmarshalList(value *reflect.Value) error {
 }
 
 func (d *decoder) unmarshalDict(value *reflect.Value) error {
+	if value != nil && value.Elem().Type().Kind() != reflect.Struct {
+		return fmt.Errorf("cannot unmarshal dictionary at offset %d into %s", d.offset, value.Elem().Type())
+	}
+
 	structValues := make(map[string]reflect.Value)
 	if value != nil {
 		structType := value.Elem().Type()

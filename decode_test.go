@@ -177,6 +177,23 @@ var decodeTests = []struct {
 		in:         "d7:structsld1:xi651e4:aaaai300e2:yyi600e3:zzz5:helloeee",
 		outputArg:  compositStruct{},
 		wantOutput: compositStruct{StructList: []simpleStruct{{X: 651, Y: 600, Z: "hello"}}}},
+
+	{name: "wrong output type for integer", in: "i651e", outputArg: "",
+		wantOutput: "",
+		wantErr:    "cannot unmarshal integer at offset 0 into string"},
+	{name: "wrong output type for string", in: "1:a", outputArg: int64(0),
+		wantOutput: int64(0),
+		wantErr:    "cannot unmarshal string at offset 0 into int64"},
+	{name: "wrong output type for list", in: "le", outputArg: "",
+		wantOutput: "",
+		wantErr:    "cannot unmarshal list at offset 0 into string"},
+	{name: "wrong output type for dictionary", in: "de", outputArg: "",
+		wantOutput: "",
+		wantErr:    "cannot unmarshal dictionary at offset 0 into string"},
+	{name: "wrong output type for composit dictionary", in: "d4:intsl3:badee",
+		outputArg:  compositStruct{},
+		wantOutput: compositStruct{},
+		wantErr:    "cannot unmarshal string at offset 8 into int64"},
 }
 
 func TestDecode(t *testing.T) {
