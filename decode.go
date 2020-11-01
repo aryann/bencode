@@ -182,19 +182,18 @@ func (d *decoder) unmarshalList(value *reflect.Value) error {
 	d.offset++ // Consume 'l'.
 
 	for d.offset < len(d.data) && d.data[d.offset] != terminator {
-		var elem reflect.Value
-		if value != nil {
-			elem = reflect.New(value.Elem().Type().Elem())
+		if value == nil {
+			if err := d.unmarshalNext(nil); err != nil {
+				return err
+			}
+			continue
 		}
 
-		err := d.unmarshalNext(&elem)
-		if err != nil {
+		elem := reflect.New(value.Elem().Type().Elem())
+		if err := d.unmarshalNext(&elem); err != nil {
 			return err
 		}
-
-		if value != nil {
-			d.valueSetter.Append(value, elem)
-		}
+		d.valueSetter.Append(value, elem)
 	}
 
 	if d.offset >= len(d.data) || d.data[d.offset] != terminator {

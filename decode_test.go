@@ -173,10 +173,14 @@ var decodeTests = []struct {
 
 	{name: "undefined key dictionary 1", in: "d3:abci651ee", outputArg: struct{}{},
 		wantOutput: struct{}{}},
-	{name: "undefined key dictionary 1",
+	{name: "undefined key dictionary 2",
 		in:         "d7:structsld1:xi651e4:aaaai300e2:yyi600e3:zzz5:helloeee",
 		outputArg:  compositStruct{},
 		wantOutput: compositStruct{StructList: []simpleStruct{{X: 651, Y: 600, Z: "hello"}}}},
+	{name: "undefined key dictionary 3", in: "d3:abcli651eee", outputArg: struct{}{},
+		wantOutput: struct{}{}},
+	{name: "undefined key dictionary 4", in: "d3:abcli651e3:aaaee", outputArg: struct{}{},
+		wantOutput: struct{}{}},
 
 	{name: "wrong output type for integer", in: "i651e", outputArg: "",
 		wantOutput: "",
