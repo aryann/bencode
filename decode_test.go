@@ -181,6 +181,9 @@ var decodeTests = []struct {
 		wantOutput: struct{}{}},
 	{name: "undefined key dictionary 4", in: "d3:abcli651e3:aaaee", outputArg: struct{}{},
 		wantOutput: struct{}{}},
+	{name: "undefined and unparsable key dictionary", in: "d3:abcliiii651e3:aaaee", outputArg: struct{}{},
+		wantOutput: struct{}{},
+		wantErr:    "expected integer at offset 8"},
 
 	{name: "wrong output type for integer", in: "i651e", outputArg: "",
 		wantOutput: "",
