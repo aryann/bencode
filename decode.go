@@ -27,24 +27,25 @@ func Unmarshal(data []byte, v interface{}) error {
 	// modifications to the output parameter v.
 	validator := decoder{
 		data:        data,
-		ValueSetter: noOpValueSetter{},
+		offset:      0,
+		valueSetter: noOpValueSetter{},
 	}
-	i, err := validator.unmarshalNext(0, value)
+	err := validator.unmarshalNext(value)
 	if err != nil {
 		return err
 	}
-	if i < len(data) {
-		return fmt.Errorf("trailing data at offset %d cannot be parsed", i)
+	if !validator.isDone() {
+		return fmt.Errorf("trailing data at offset %d cannot be parsed", validator.offset)
 	}
 
 	// The input is valid, so now we do our second pass over the input and
 	// fill the output parameter.
 	decoder := decoder{
 		data:        data,
-		ValueSetter: valueSetter{},
+		offset:      0,
+		valueSetter: valueSetter{},
 	}
-	_, err = decoder.unmarshalNext(0, value)
-	return err
+	return decoder.unmarshalNext(value)
 }
 
 // valueSetterInterface abstracts a subset of the reflect.Value modifiers.
@@ -77,28 +78,33 @@ func (noOpValueSetter) Append(target reflect.Value, elem reflect.Value) {}
 
 type decoder struct {
 	data        []byte
-	ValueSetter valueSetterInterface
+	offset      int
+	valueSetter valueSetterInterface
 }
 
-func (d *decoder) unmarshalNext(offset int, value reflect.Value) (int, error) {
+func (d *decoder) isDone() bool {
+	return len(d.data) <= d.offset
+}
+
+func (d *decoder) unmarshalNext(value reflect.Value) error {
 	value = value.Elem()
 	if len(d.data) == 0 {
-		return 0, fmt.Errorf("no data to read at offset %d", offset)
+		return fmt.Errorf("no data to read at offset %d", d.offset)
 	}
 
-	if isDigit(d.data[offset]) {
-		return d.unmarshalString(offset, value)
+	if isDigit(d.data[d.offset]) {
+		return d.unmarshalString(value)
 	}
 
-	switch d.data[offset] {
+	switch d.data[d.offset] {
 	case integer:
-		return d.unmarshalInt(offset, value)
+		return d.unmarshalInt(value)
 	case list:
-		return d.unmarshalList(offset, value)
+		return d.unmarshalList(value)
 	case dictionary:
-		return d.unmarshalDict(offset, value)
+		return d.unmarshalDict(value)
 	}
-	return 0, fmt.Errorf("expected start of integer, string, list, or dictionary at offset %d", offset)
+	return fmt.Errorf("expected start of integer, string, list, or dictionary at offset %d", d.offset)
 }
 
 func isDigit(b byte) bool {
@@ -130,53 +136,55 @@ func stringIndices(offset int, data []byte) (int, int, error) {
 	return strStart, strLimit, nil
 }
 
-func (d *decoder) unmarshalString(offset int, value reflect.Value) (int, error) {
-	start, limit, err := stringIndices(offset, d.data)
+func (d *decoder) unmarshalString(value reflect.Value) error {
+	start, limit, err := stringIndices(d.offset, d.data)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	d.ValueSetter.SetString(value, string(d.data[start:limit]))
-	return limit, nil
+	d.valueSetter.SetString(value, string(d.data[start:limit]))
+	d.offset = limit
+	return nil
 }
 
-func (d *decoder) unmarshalInt(offset int, value reflect.Value) (int, error) {
-	intStart := offset + 1
+func (d *decoder) unmarshalInt(value reflect.Value) error {
+	intStart := d.offset + 1
 	intLimit := intLimit(intStart+1, d.data) // First character may be a '-'.
 
 	i, err := strconv.Atoi(string(d.data[intStart:intLimit]))
 	if err != nil {
-		return 0, fmt.Errorf("expected integer at offset %d", intStart)
+		return fmt.Errorf("expected integer at offset %d", intStart)
 	}
 
 	if intLimit >= len(d.data) || d.data[intLimit] != terminator {
-		return 0, fmt.Errorf("expected terminator for integer at offset %d", intLimit)
+		return fmt.Errorf("expected terminator for integer at offset %d", intLimit)
 	}
 
-	d.ValueSetter.SetInt(value, int64(i))
-	return intLimit + 1, nil
+	d.valueSetter.SetInt(value, int64(i))
+	d.offset = intLimit + 1
+	return nil
 }
 
-func (d *decoder) unmarshalList(offset int, value reflect.Value) (int, error) {
-	offset++ // Consume 'l'.
+func (d *decoder) unmarshalList(value reflect.Value) error {
+	d.offset++ // Consume 'l'.
 	elemType := value.Type().Elem()
 
-	for offset < len(d.data) && d.data[offset] != terminator {
+	for d.offset < len(d.data) && d.data[d.offset] != terminator {
 		elem := reflect.New(elemType)
-		newOffset, err := d.unmarshalNext(offset, elem)
+		err := d.unmarshalNext(elem)
 		if err != nil {
-			return 0, err
+			return err
 		}
-		offset = newOffset
-		d.ValueSetter.Append(value, elem)
+		d.valueSetter.Append(value, elem)
 	}
 
-	if offset >= len(d.data) || d.data[offset] != terminator {
-		return 0, fmt.Errorf("expected terminator for list at offset %d", offset)
+	if d.offset >= len(d.data) || d.data[d.offset] != terminator {
+		return fmt.Errorf("expected terminator for list at offset %d", d.offset)
 	}
-	return offset + 1, nil
+	d.offset++
+	return nil
 }
 
-func (d *decoder) unmarshalDict(offset int, value reflect.Value) (int, error) {
+func (d *decoder) unmarshalDict(value reflect.Value) error {
 	structType := value.Type()
 	structValues := make(map[string]reflect.Value)
 	for i := 0; i < structType.NumField(); i++ {
@@ -188,33 +196,32 @@ func (d *decoder) unmarshalDict(offset int, value reflect.Value) (int, error) {
 		structValues[key] = value.Field(i).Addr()
 	}
 
-	offset++ // Consume 'd'.
-	for offset < len(d.data) && d.data[offset] != terminator {
-		if !isDigit(d.data[offset]) {
-			return 0, fmt.Errorf("dictionary key at offset %d is not a string", offset)
+	d.offset++ // Consume 'd'.
+	for d.offset < len(d.data) && d.data[d.offset] != terminator {
+		if !isDigit(d.data[d.offset]) {
+			return fmt.Errorf("dictionary key at offset %d is not a string", d.offset)
 		}
-		start, limit, err := stringIndices(offset, d.data)
+		start, limit, err := stringIndices(d.offset, d.data)
 		if err != nil {
-			return 0, err
+			return err
 		}
 		key := string(d.data[start:limit])
 		value, ok := structValues[key]
 		if !ok {
 			// TODO: This is too restrictive. We should just ignore
 			// unrecognized keys much the same way the json package does.
-			return 0, fmt.Errorf("dictionary contains key '%s' at offset %d which does not exist in the given struct", key, offset)
+			return fmt.Errorf("dictionary contains key '%s' at offset %d which does not exist in the given struct", key, d.offset)
 		}
 
-		valueOffset := limit
-		newOffset, err := d.unmarshalNext(valueOffset, value)
-		if err != nil {
-			return 0, err
+		d.offset = limit
+		if err := d.unmarshalNext(value); err != nil {
+			return err
 		}
-		offset = newOffset
 	}
 
-	if offset >= len(d.data) || d.data[offset] != terminator {
-		return 0, fmt.Errorf("expected terminator for dictionary at offset %d", offset)
+	if d.offset >= len(d.data) || d.data[d.offset] != terminator {
+		return fmt.Errorf("expected terminator for dictionary at offset %d", d.offset)
 	}
-	return offset + 1, nil
+	d.offset++
+	return nil
 }
