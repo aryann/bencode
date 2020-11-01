@@ -18,7 +18,7 @@ $ go get github.com/aryann/bencode
 
 The following is an example that shows how to encode and decode values using
 this library. This example is also available at
-[the Go Playground](https://play.golang.org/p/oTBo7ephPiz).
+[the Go Playground](https://play.golang.org/p/QwEanuzOqYt).
 
 ```Go
 package main
@@ -33,12 +33,12 @@ import (
 func main() {
 	type MyData struct {
 		MyString   string `bencode:"my-string"`
-		MyIntegers []int  `bencode:"my-integers"`
+		MyIntegers []int64  `bencode:"my-integers"`
 	}
 
 	myData := MyData{
 		MyString:   "Hello, world!",
-		MyIntegers: []int{1, 22, 333},
+		MyIntegers: []int64{1, 22, 333},
 	}
 	encoded, err := bencode.Marshal(myData)
 	if err != nil {
