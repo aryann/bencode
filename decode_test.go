@@ -6,15 +6,15 @@ import (
 )
 
 type simpleStruct struct {
-	X       int    `key:"x"`
-	Y       int    `key:"yy"`
+	X       int64  `key:"x"`
+	Y       int64  `key:"yy"`
 	Z       string `key:"zzz"`
 	Unnamed string
 }
 
 type compositStruct struct {
 	StringList []string       `key:"strings"`
-	IntList    []int          `key:"ints"`
+	IntList    []int64        `key:"ints"`
 	StructList []simpleStruct `key:"structs"`
 }
 
@@ -29,36 +29,36 @@ var decodeTests = []struct {
 		wantOutput: "",
 		wantErr:    "no data to read at offset 0"},
 
-	{name: "zero integer", in: "i0e", outputArg: 0, wantOutput: 0},
-	{name: "positive integer", in: "i651e", outputArg: 0, wantOutput: 651},
-	{name: "negative integer", in: "i-601e", outputArg: 0, wantOutput: -601},
+	{name: "zero integer", in: "i0e", outputArg: int64(0), wantOutput: int64(0)},
+	{name: "positive integer", in: "i651e", outputArg: int64(0), wantOutput: int64(651)},
+	{name: "negative integer", in: "i-601e", outputArg: int64(0), wantOutput: int64(-601)},
 
-	{name: "missing integer", in: "ie", outputArg: 0,
-		wantOutput: 0,
+	{name: "missing integer", in: "ie", outputArg: int64(0),
+		wantOutput: int64(0),
 		wantErr:    "expected integer at offset 1"},
 
-	{name: "malformed integer 1", in: "i-e", outputArg: 0,
-		wantOutput: 0,
+	{name: "malformed integer 1", in: "i-e", outputArg: int64(0),
+		wantOutput: int64(0),
 		wantErr:    "expected integer at offset 1"},
 
-	{name: "malformed integer 2", in: "i*e", outputArg: 0,
-		wantOutput: 0,
+	{name: "malformed integer 2", in: "i*e", outputArg: int64(0),
+		wantOutput: int64(0),
 		wantErr:    "expected integer at offset 1"},
 
-	{name: "malformed integer 3", in: "i0x80e", outputArg: 0,
-		wantOutput: 0,
+	{name: "malformed integer 3", in: "i0x80e", outputArg: int64(0),
+		wantOutput: int64(0),
 		wantErr:    "expected terminator for integer at offset 2"},
 
-	{name: "not an integer", in: "iNOT_A_NUMBERe", outputArg: 0,
-		wantOutput: 0,
+	{name: "not an integer", in: "iNOT_A_NUMBERe", outputArg: int64(0),
+		wantOutput: int64(0),
 		wantErr:    "expected integer at offset 1"},
 
-	{name: "unterminated integer", in: "i123", outputArg: 0,
-		wantOutput: 0,
+	{name: "unterminated integer", in: "i123", outputArg: int64(0),
+		wantOutput: int64(0),
 		wantErr:    "expected terminator for integer at offset 4"},
 
-	{name: "incorrectly-terminated integer", in: "i123wrong_terminator", outputArg: 0,
-		wantOutput: 0,
+	{name: "incorrectly-terminated integer", in: "i123wrong_terminator", outputArg: int64(0),
+		wantOutput: int64(0),
 		wantErr:    "expected terminator for integer at offset 4"},
 
 	{name: "empty string 1", in: "0:", outputArg: "",
@@ -84,22 +84,22 @@ var decodeTests = []struct {
 		wantOutput: "",
 		wantErr:    "string at offset 0 has length 100, yet there are not that many bytes left"},
 
-	{name: "empty list", in: "le", outputArg: []int{}, wantOutput: *new([]int)},
-	{name: "single-element integer list", in: "li651ee", outputArg: []int{},
-		wantOutput: []int{651}},
-	{name: "multi-element integer list", in: "li651ee", outputArg: []int{},
-		wantOutput: []int{651}},
+	{name: "empty list", in: "le", outputArg: []int64{}, wantOutput: *new([]int64)},
+	{name: "single-element integer list", in: "li651ee", outputArg: []int64{},
+		wantOutput: []int64{651}},
+	{name: "multi-element integer list", in: "li651ee", outputArg: []int64{},
+		wantOutput: []int64{651}},
 
 	{name: "single-element string list", in: "l3:abce", outputArg: []string{},
 		wantOutput: []string{"abc"}},
 	{name: "multi-element string list", in: "l3:abc2:de1:fe", outputArg: []string{},
 		wantOutput: []string{"abc", "de", "f"}},
 
-	{name: "unterminated list 1", in: "li651e", outputArg: []int{},
-		wantOutput: *new([]int),
+	{name: "unterminated list 1", in: "li651e", outputArg: []int64{},
+		wantOutput: *new([]int64),
 		wantErr:    "expected terminator for list at offset 6"},
-	{name: "unterminated list 2", in: "li651ewrong_terminator", outputArg: []int{},
-		wantOutput: *new([]int),
+	{name: "unterminated list 2", in: "li651ewrong_terminator", outputArg: []int64{},
+		wantOutput: *new([]int64),
 		wantErr:    "expected start of integer, string, list, or dictionary at offset 6"},
 	{name: "unterminated list 3", in: "l3:abc", outputArg: []string{},
 		wantOutput: *new([]string),
@@ -107,8 +107,8 @@ var decodeTests = []struct {
 	{name: "unterminated list 4", in: "l", outputArg: []string{},
 		wantOutput: *new([]string),
 		wantErr:    "expected terminator for list at offset 1"},
-	{name: "unterminated list item", in: "li651", outputArg: []int{},
-		wantOutput: *new([]int),
+	{name: "unterminated list item", in: "li651", outputArg: []int64{},
+		wantOutput: *new([]int64),
 		wantErr:    "expected terminator for integer at offset 5"},
 
 	{name: "empty dictionary 1", in: "de", outputArg: struct{}{},
@@ -137,10 +137,10 @@ var decodeTests = []struct {
 		wantOutput: compositStruct{}},
 	{name: "ints composit dictionary 2", in: "d4:intsli651eee",
 		outputArg:  compositStruct{},
-		wantOutput: compositStruct{IntList: []int{651}}},
+		wantOutput: compositStruct{IntList: []int64{651}}},
 	{name: "ints composit dictionary 3", in: "d4:intsli1ei2ei3eee",
 		outputArg:  compositStruct{},
-		wantOutput: compositStruct{IntList: []int{1, 2, 3}}},
+		wantOutput: compositStruct{IntList: []int64{1, 2, 3}}},
 
 	{name: "structs composit dictionary 1", in: "d7:structslee",
 		outputArg:  compositStruct{},
@@ -170,6 +170,13 @@ var decodeTests = []struct {
 	{name: "unterminated dictionary 1", in: "d", outputArg: struct{}{},
 		wantOutput: struct{}{},
 		wantErr:    "expected terminator for dictionary at offset 1"},
+
+	{name: "undefined key dictionary 1", in: "d3:abci651ee", outputArg: struct{}{},
+		wantOutput: struct{}{}},
+	{name: "undefined key dictionary 1",
+		in:         "d7:structsld1:xi651e4:aaaai300e2:yyi600e3:zzz5:helloeee",
+		outputArg:  compositStruct{},
+		wantOutput: compositStruct{StructList: []simpleStruct{{X: 651, Y: 600, Z: "hello"}}}},
 }
 
 func TestDecode(t *testing.T) {

@@ -30,7 +30,7 @@ func Unmarshal(data []byte, v interface{}) error {
 		offset:      0,
 		valueSetter: noOpValueSetter{},
 	}
-	err := validator.unmarshalNext(value)
+	err := validator.unmarshalNext(&value)
 	if err != nil {
 		return err
 	}
@@ -45,36 +45,36 @@ func Unmarshal(data []byte, v interface{}) error {
 		offset:      0,
 		valueSetter: valueSetter{},
 	}
-	return decoder.unmarshalNext(value)
+	return decoder.unmarshalNext(&value)
 }
 
 // valueSetterInterface abstracts a subset of the reflect.Value modifiers.
 type valueSetterInterface interface {
-	SetInt(value reflect.Value, i int64)
-	SetString(value reflect.Value, s string)
-	Append(target reflect.Value, elem reflect.Value)
+	SetInt(value *reflect.Value, i int64)
+	SetString(value *reflect.Value, s string)
+	Append(target *reflect.Value, elem reflect.Value)
 }
 
 // valueSetter delegates directly to the reflect.Value modifiers.
 type valueSetter struct{}
 
-func (valueSetter) SetInt(value reflect.Value, i int64) {
-	value.SetInt(i)
+func (valueSetter) SetInt(value *reflect.Value, i int64) {
+	value.Elem().SetInt(i)
 }
-func (valueSetter) SetString(value reflect.Value, s string) {
-	value.SetString(s)
+func (valueSetter) SetString(value *reflect.Value, s string) {
+	value.Elem().SetString(s)
 }
-func (valueSetter) Append(target reflect.Value, elem reflect.Value) {
-	target.Set(reflect.Append(target, reflect.Indirect(elem)))
+func (valueSetter) Append(target *reflect.Value, elem reflect.Value) {
+	target.Elem().Set(reflect.Append(target.Elem(), reflect.Indirect(elem)))
 }
 
 // noOpValueSetter is a valueSetterInterface that does nothing. This is useful
 // during the validation phase of deserialization.
 type noOpValueSetter struct{}
 
-func (noOpValueSetter) SetInt(value reflect.Value, i int64)             {}
-func (noOpValueSetter) SetString(value reflect.Value, s string)         {}
-func (noOpValueSetter) Append(target reflect.Value, elem reflect.Value) {}
+func (noOpValueSetter) SetInt(value *reflect.Value, i int64)             {}
+func (noOpValueSetter) SetString(value *reflect.Value, s string)         {}
+func (noOpValueSetter) Append(target *reflect.Value, elem reflect.Value) {}
 
 type decoder struct {
 	data        []byte
@@ -86,8 +86,7 @@ func (d *decoder) isDone() bool {
 	return len(d.data) <= d.offset
 }
 
-func (d *decoder) unmarshalNext(value reflect.Value) error {
-	value = value.Elem()
+func (d *decoder) unmarshalNext(value *reflect.Value) error {
 	if len(d.data) == 0 {
 		return fmt.Errorf("no data to read at offset %d", d.offset)
 	}
@@ -136,17 +135,23 @@ func stringIndices(offset int, data []byte) (int, int, error) {
 	return strStart, strLimit, nil
 }
 
-func (d *decoder) unmarshalString(value reflect.Value) error {
+func (d *decoder) unmarshalString(value *reflect.Value) error {
 	start, limit, err := stringIndices(d.offset, d.data)
 	if err != nil {
 		return err
 	}
-	d.valueSetter.SetString(value, string(d.data[start:limit]))
+
+	if value != nil {
+		if value.Elem().Type().Kind() != reflect.String {
+			return fmt.Errorf("expected string")
+		}
+		d.valueSetter.SetString(value, string(d.data[start:limit]))
+	}
 	d.offset = limit
 	return nil
 }
 
-func (d *decoder) unmarshalInt(value reflect.Value) error {
+func (d *decoder) unmarshalInt(value *reflect.Value) error {
 	intStart := d.offset + 1
 	intLimit := intLimit(intStart+1, d.data) // First character may be a '-'.
 
@@ -159,22 +164,33 @@ func (d *decoder) unmarshalInt(value reflect.Value) error {
 		return fmt.Errorf("expected terminator for integer at offset %d", intLimit)
 	}
 
-	d.valueSetter.SetInt(value, int64(i))
+	if value != nil {
+		if value.Elem().Type().Kind() != reflect.Int64 {
+			return fmt.Errorf("expected int64")
+		}
+		d.valueSetter.SetInt(value, int64(i))
+	}
 	d.offset = intLimit + 1
 	return nil
 }
 
-func (d *decoder) unmarshalList(value reflect.Value) error {
+func (d *decoder) unmarshalList(value *reflect.Value) error {
 	d.offset++ // Consume 'l'.
-	elemType := value.Type().Elem()
 
 	for d.offset < len(d.data) && d.data[d.offset] != terminator {
-		elem := reflect.New(elemType)
-		err := d.unmarshalNext(elem)
+		var elem reflect.Value
+		if value != nil {
+			elem = reflect.New(value.Elem().Type().Elem())
+		}
+
+		err := d.unmarshalNext(&elem)
 		if err != nil {
 			return err
 		}
-		d.valueSetter.Append(value, elem)
+
+		if value != nil {
+			d.valueSetter.Append(value, elem)
+		}
 	}
 
 	if d.offset >= len(d.data) || d.data[d.offset] != terminator {
@@ -184,16 +200,18 @@ func (d *decoder) unmarshalList(value reflect.Value) error {
 	return nil
 }
 
-func (d *decoder) unmarshalDict(value reflect.Value) error {
-	structType := value.Type()
+func (d *decoder) unmarshalDict(value *reflect.Value) error {
 	structValues := make(map[string]reflect.Value)
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
-		key, ok := field.Tag.Lookup("key")
-		if !ok {
-			continue
+	if value != nil {
+		structType := value.Elem().Type()
+		for i := 0; i < structType.NumField(); i++ {
+			field := structType.Field(i)
+			key, ok := field.Tag.Lookup("key")
+			if !ok {
+				continue
+			}
+			structValues[key] = value.Elem().Field(i).Addr()
 		}
-		structValues[key] = value.Field(i).Addr()
 	}
 
 	d.offset++ // Consume 'd'.
@@ -206,15 +224,15 @@ func (d *decoder) unmarshalDict(value reflect.Value) error {
 			return err
 		}
 		key := string(d.data[start:limit])
+		d.offset = limit
+
+		var nextValue *reflect.Value
 		value, ok := structValues[key]
-		if !ok {
-			// TODO: This is too restrictive. We should just ignore
-			// unrecognized keys much the same way the json package does.
-			return fmt.Errorf("dictionary contains key '%s' at offset %d which does not exist in the given struct", key, d.offset)
+		if ok {
+			nextValue = &value
 		}
 
-		d.offset = limit
-		if err := d.unmarshalNext(value); err != nil {
+		if err := d.unmarshalNext(nextValue); err != nil {
 			return err
 		}
 	}
